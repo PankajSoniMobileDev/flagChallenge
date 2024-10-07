@@ -8,10 +8,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
 import com.appadore.flagchallenge.R
 import com.appadore.flagchallenge.model.AnswerFeedback
 import com.appadore.flagchallenge.model.Country
 import com.appadore.flagchallenge.model.Question
+import com.appadore.flagchallenge.util.ChallengeWorker
 import com.appadore.flagchallenge.util.GameConstants
 import com.appadore.flagchallenge.util.Utils
 import com.appadore.flagchallenge.util.Utils.getTargetTimeFromStorage
@@ -23,6 +27,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.io.InputStream
+import java.util.concurrent.TimeUnit
 
 class GameViewModel : ViewModel() {
     var hoursFirstDigit = mutableStateOf("")
@@ -46,7 +51,7 @@ class GameViewModel : ViewModel() {
     private var gameOver by mutableStateOf(false)
     private var finalScore by mutableStateOf(0)
 
-    private var totalSecondsToStartChallenge: Int = 0
+    var totalSecondsToStartChallenge: Int = 0
     private var countdownJob: Job? = null
     private var questionList = listOf<Question>()
     var gameEnded = mutableStateOf(false)
@@ -120,10 +125,17 @@ class GameViewModel : ViewModel() {
 
         if (isValidTime(hours, minutes, seconds)) {
             totalSecondsToStartChallenge = hours * 3600 + minutes * 60 + seconds
-            val targetTimeInMillis = System.currentTimeMillis() + totalSecondsToStartChallenge * 1000
-            saveTargetTimeInStorage(context,targetTimeInMillis)
 
-            startCountdown()
+            val startTime = System.currentTimeMillis()
+            val sharedPreferences = context.getSharedPreferences("challenge_prefs", Context.MODE_PRIVATE)
+            sharedPreferences.edit()
+                .putLong("countdown_start_time", startTime)
+                .putInt("total_seconds_scheduled", totalSecondsToStartChallenge)
+                .apply()
+
+            scheduleWorkManagerTimer(context,startTime, totalSecondsToStartChallenge)
+
+            startCountdown(context)
         } else {
             timerText.value = "Invalid Time!"
         }
@@ -132,7 +144,7 @@ class GameViewModel : ViewModel() {
     /**
      * method used to start the countdown timer
      */
-    private fun startCountdown() {
+    fun startCountdown(context: Context) {
         countdownJob?.cancel()
         countdownJob = CoroutineScope(Dispatchers.Main).launch {
             while (totalSecondsToStartChallenge > 0) {
@@ -144,7 +156,7 @@ class GameViewModel : ViewModel() {
                 }
             }
             if (totalSecondsToStartChallenge == 0) {
-                startChallenge()
+                startChallenge(context)
             }
         }
     }
@@ -230,7 +242,8 @@ class GameViewModel : ViewModel() {
     /**
      * method used to start the challenge once timer ended
      */
-    private fun startChallenge() {
+    private fun startChallenge(context: Context) {
+        WorkManager.getInstance(context).cancelAllWorkByTag("challenge_timer")
         challengeStarted.value = true
         loadNextQuestion()
     }
@@ -254,6 +267,7 @@ class GameViewModel : ViewModel() {
         secondsFirstDigit.value=""
         secondsSecondDigit.value=""
         loadQuestionsFromJson(context = context)
+        WorkManager.getInstance(context).cancelAllWorkByTag("challenge_timer")
     }
 
     /**
@@ -267,17 +281,46 @@ class GameViewModel : ViewModel() {
      * method used to handle timer scenario
      */
     fun handleAppReopen(context: Context) {
-        val targetTime = getTargetTimeFromStorage(context)
-        if (targetTime != -1L) {
-            val currentTime = System.currentTimeMillis()
-            val remainingTimeInMillis = targetTime - currentTime
+        val currentTime = System.currentTimeMillis()
+        val sharedPreferences = context.getSharedPreferences("challenge_prefs", Context.MODE_PRIVATE)
+        val savedStartTime = sharedPreferences.getLong("countdown_start_time", 0L)
+        val totalSecondsScheduled = sharedPreferences.getInt("total_seconds_scheduled", 0)
 
-            if (remainingTimeInMillis > 0) {
-                totalSecondsToStartChallenge = (remainingTimeInMillis / 1000).toInt()
-                startCountdown()
-            } else {
-                startChallenge()
-            }
+        if (savedStartTime == 0L || totalSecondsScheduled == 0) {
+            timerText.value = "Set the time to start the challenge"
+            return
         }
+
+        val elapsedTimeInSeconds = ((currentTime - savedStartTime) / 1000).toInt()
+        val remainingTime = totalSecondsScheduled - elapsedTimeInSeconds
+
+        if (remainingTime > 0) {
+            totalSecondsToStartChallenge = remainingTime
+            startCountdown(context)
+        } else {
+            startChallenge(context)
+        }
+
+        WorkManager.getInstance(context).cancelAllWork()
+    }
+
+    /**
+     * starting work manager for the timer
+     */
+    private fun scheduleWorkManagerTimer(context: Context,startTime: Long, totalSecondsScheduled: Int) {
+        val inputData = workDataOf(
+            "startTime" to startTime,
+            "totalSecondsScheduled" to totalSecondsScheduled
+        )
+
+        val delayInMillis = totalSecondsScheduled * 1000L
+        val workRequest = OneTimeWorkRequestBuilder<ChallengeWorker>()
+            .setInitialDelay(delayInMillis, TimeUnit.MILLISECONDS)
+            .setInputData(inputData)
+            .addTag("challenge_timer")
+            .build()
+
+        WorkManager.getInstance(context)
+            .enqueue(workRequest)
     }
 }
