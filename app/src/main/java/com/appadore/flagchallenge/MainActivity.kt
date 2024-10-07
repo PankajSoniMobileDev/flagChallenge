@@ -6,8 +6,10 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -36,6 +38,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.appadore.flagchallenge.model.AnswerFeedback
@@ -102,7 +105,12 @@ class MainActivity : ComponentActivity() {
 
 
             if (viewModel.challengeStarted.value && !viewModel.gameEnded.value) {
-                Text(text = "Q${viewModel.questionNumber.value}: ${viewModel.questionText.value}", style = MaterialTheme.typography.headlineSmall)
+                viewModel.startTimer()
+                Row(horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+                    TimerView(viewModel = viewModel)
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(text = "Q${viewModel.questionNumber.value}: ${viewModel.questionText.value}", style = MaterialTheme.typography.headlineSmall)
+                }
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Flag Image
@@ -195,37 +203,104 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    @Composable
-    fun OptionButton(
-        option: Country,
-        isSelected: Boolean,
-        isCorrect: Boolean,
-        feedback: AnswerFeedback?,
-        onClick: () -> Unit
-    ) {
+    @Composable fun OptionButton(option: Country, isSelected: Boolean, isCorrect: Boolean, feedback: AnswerFeedback?, onClick: () -> Unit) {
         val borderColor = when {
-            feedback?.selectedOptionId == option.id && feedback.isCorrect -> Color.Green
-            feedback?.selectedOptionId == option.id && !feedback.isCorrect -> Color.Red
+            feedback?.selectedOptionId == option.id && feedback.isCorrect -> Color.Green // Selected correct answer
+            feedback?.selectedOptionId == option.id && !feedback.isCorrect -> Color.Red // Selected wrong answer
+            feedback?.selectedOptionId != option.id && feedback?.isCorrect == true && option.id == feedback.correctOptionId -> Color.Green // Highlight correct answer even if user selected wrong
+            feedback?.selectedOptionId != option.id && feedback?.isCorrect == false && option.id == feedback.correctOptionId -> Color.Green // Highlight correct answer even when wrong is selected  else -> Color.Gray // Default state
             else -> Color.Gray
         }
 
         val buttonWidth = 150.dp
         val buttonHeight = 50.dp
 
-        Button(
-            onClick = onClick, // Prevent click action if disabled
-            modifier = Modifier
-                .size(buttonWidth, buttonHeight) // Set fixed size
-                .border(BorderStroke(2.dp, borderColor))
-                .padding(8.dp),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Black),
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(vertical = 4.dp) // Adjust padding if needed
         ) {
-            Text(
-                text = option.countryName,
-                textAlign = TextAlign.Center,
-                color = Color.Black,
-                maxLines = 1, // Prevent text wrapping
-                overflow = TextOverflow.Ellipsis // Handle overflow with ellipsis
+            Box(modifier = Modifier
+                .size(buttonWidth, buttonHeight) // Set fixed size
+                .border(BorderStroke(2.dp, borderColor)) // Apply the border
+                .padding(8.dp), contentAlignment = Alignment.Center) {
+                Button(onClick = onClick, modifier = Modifier.fillMaxSize(), // Ensure the button fills the box
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Black), enabled = feedback == null // Disable button after the answer is selected
+                ) {
+                    Text(text = option.countryName, textAlign = TextAlign.Center, color = Color.Black, maxLines = 1, // Prevent text wrapping
+                        overflow = TextOverflow.Ellipsis // Handle overflow with ellipsis
+                    )
+                }
+            }
+
+            // Show the correct/incorrect label below the box and center it
+            if (feedback != null) {
+                val labelText = when {
+                    feedback.selectedOptionId == option.id && feedback.isCorrect -> "Correct"
+                    feedback.selectedOptionId == option.id && !feedback.isCorrect -> "Wrong"
+                    feedback.selectedOptionId != option.id && feedback.correctOptionId == option.id -> "Correct"
+                    else -> null
+                }
+
+                labelText?.let {
+                    Text(text = it, color = if (it == "Correct") Color.Green else Color.Red, fontSize = 12.sp, modifier = Modifier
+                        .padding(top = 4.dp) // Add some space between the button and the label
+                        .align(Alignment.CenterHorizontally) // Center the label horizontally
+                    )
+                }
+            }
+        }
+    }
+
+    /*@Composable fun OptionButton(option: Country, isSelected: Boolean, isCorrect: Boolean, feedback: AnswerFeedback?, onClick: () -> Unit) { // Determine border color based on answer feedback
+        val borderColor = when {
+            feedback?.selectedOptionId == option.id && feedback.isCorrect -> Color.Green // Selected correct answer
+            feedback?.selectedOptionId == option.id && !feedback.isCorrect -> Color.Red  // Selected wrong answer
+            feedback?.selectedOptionId != option.id && feedback?.isCorrect == true && option.id == feedback.correctOptionId -> Color.Green // Highlight correct answer even if user selected wrong
+            feedback?.selectedOptionId != option.id && feedback?.isCorrect == false && option.id == feedback.correctOptionId -> Color.Green // Highlight correct answer even when wrong is selected
+            else -> Color.Gray // Default state
+        }
+
+        val buttonWidth = 150.dp
+        val buttonHeight = 50.dp
+
+        Box(modifier = Modifier
+            .size(buttonWidth, buttonHeight) // Set fixed size
+            .border(BorderStroke(2.dp, borderColor)) // Apply the border
+            .padding(8.dp), contentAlignment = Alignment.Center) {
+            Button(onClick = onClick, modifier = Modifier.fillMaxSize(), // Ensure the button fills the box
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Black), enabled = feedback == null // Disable button after the answer is selected
+            ) {
+                Text(text = option.countryName, textAlign = TextAlign.Center, color = Color.Black, maxLines = 1, // Prevent text wrapping
+                    overflow = TextOverflow.Ellipsis // Handle overflow with ellipsis
+                )
+            }
+
+            // Show the correct/incorrect label if feedback is available
+            if (feedback != null) {
+                val labelText = when {
+                    feedback.selectedOptionId == option.id && feedback.isCorrect -> "Correct"
+                    feedback.selectedOptionId == option.id && !feedback.isCorrect -> "Wrong"
+                    feedback.selectedOptionId != option.id && feedback.correctOptionId == option.id -> "Correct"
+                    else -> null
+                }
+
+                labelText?.let {
+                    Text(text = it, color = if (it == "Correct") Color.Green else Color.Red, fontSize = 12.sp, modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(4.dp))
+                }
+            }
+        }
+    }*/
+
+    @Composable fun TimerView(viewModel: GameViewModel) {
+        val timeLeft = viewModel.timeLeftInMillis
+        Box(modifier = Modifier
+            .size(40.dp) // Set height and width to 30 dp
+            .border(1.dp, Color.Black) // Black border
+            .background(Color.LightGray) // Light grey background
+            .padding(4.dp) // Padding inside the box (adjust if necessary)
+        ) {
+            Text(text = "${(timeLeft.value / 1000)}s", style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp), // Set text size to 14 sp
+                modifier = Modifier.align(Alignment.Center) // Center the text in the box
             )
         }
     }

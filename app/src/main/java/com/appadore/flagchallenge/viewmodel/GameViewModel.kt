@@ -14,6 +14,7 @@ import com.appadore.flagchallenge.R
 import com.appadore.flagchallenge.model.AnswerFeedback
 import com.appadore.flagchallenge.model.Country
 import com.appadore.flagchallenge.model.Question
+import com.appadore.flagchallenge.util.GameConstants
 import com.appadore.flagchallenge.util.Utils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -42,15 +43,43 @@ class GameViewModel : ViewModel() {
     var correctAnswerId: Int = 0
     var score by mutableStateOf(0)
     var answerFeedback by mutableStateOf<AnswerFeedback?>(null)
-    var gameOver by mutableStateOf(false)  // New variable to track if the game is over
-    var finalScore by mutableStateOf(0)   // New variable to store the final score
+    private var gameOver by mutableStateOf(false)
+    private var finalScore by mutableStateOf(0)
 
     private var totalSecondsToStartChallenge: Int = 0
     private var countdownJob: Job? = null
     private var questionList = listOf<Question>()
     var gameEnded = mutableStateOf(false)
+    var timeLeftInMillis = mutableStateOf(GameConstants.QUESTION_TIME_MILLIS)
+    var isAnswerSelected = mutableStateOf(false)
 
-    // Load JSON and parse the data into questionList
+    private var countDownTimer: CountDownTimer? = null
+
+    /**
+     * method used to start the timer for every question
+     */
+    fun startTimer() {
+        countDownTimer?.cancel()
+        timeLeftInMillis.value = GameConstants.QUESTION_TIME_MILLIS
+        isAnswerSelected.value = false
+
+        countDownTimer = object : CountDownTimer(GameConstants.QUESTION_TIME_MILLIS, GameConstants.TIMER_INTERVAL_MILLIS) {
+            override fun onTick(millisUntilFinished: Long) {
+                timeLeftInMillis.value = millisUntilFinished
+            }
+
+            override fun onFinish() {
+                if (!isAnswerSelected.value) {
+                    questionNumber.value++
+                    loadNextQuestion()
+                }
+            }
+        }.start()
+    }
+
+    /**
+     * method used to load the question data form json
+     */
     fun loadQuestionsFromJson(context: Context) {
 
         val inputStream: InputStream = context.resources.openRawResource(R.raw.questions)
@@ -80,6 +109,9 @@ class GameViewModel : ViewModel() {
         loadNextQuestion()
     }
 
+    /**
+     * method used to schedule the challenge
+     */
     fun scheduleChallenge() {
         val hours = getTimeFromDigits(hoursFirstDigit.value, hoursSecondDigit.value)
         val minutes = getTimeFromDigits(minutesFirstDigit.value, minutesSecondDigit.value)
@@ -93,11 +125,14 @@ class GameViewModel : ViewModel() {
         }
     }
 
+    /**
+     * method used to start the countdown timer
+     */
     private fun startCountdown() {
         countdownJob?.cancel()
         countdownJob = CoroutineScope(Dispatchers.Main).launch {
             while (totalSecondsToStartChallenge > 0) {
-                delay(1000)
+                delay(GameConstants.TIMER_INTERVAL_MILLIS)
                 totalSecondsToStartChallenge--
                 updateTimerText(totalSecondsToStartChallenge)
                 if (totalSecondsToStartChallenge == 20) {
@@ -110,6 +145,9 @@ class GameViewModel : ViewModel() {
         }
     }
 
+    /**
+     * method used to update the timer text
+     */
     private fun updateTimerText(totalSeconds: Int) {
         val hours = totalSeconds / 3600
         val minutes = (totalSeconds % 3600) / 60
@@ -117,7 +155,13 @@ class GameViewModel : ViewModel() {
         timerText.value = String.format("%02d:%02d:%02d", hours, minutes, seconds)
     }
 
+    /**
+     * method used to load the next question
+     */
     private fun loadNextQuestion() {
+        isAnswerSelected.value = false
+        answerFeedback = null
+
         if (questionNumber.value <= questionList.size) {
             val currentQuestion = questionList[questionNumber.value - 1]
             flagUrl.value = Utils.getFlagDrawable(currentQuestion.countryCode)
@@ -130,51 +174,66 @@ class GameViewModel : ViewModel() {
         }
     }
 
+    /**
+     * method used to handle the selected options
+     */
     fun selectOption(optionId: Int, context: Context) {
-        if (gameOver) return // Do nothing if the game is over
+        if (gameOver || isAnswerSelected.value) return
 
         val currentQuestion = questionList[questionNumber.value - 1]
 
-        // Check if the selected option is correct
         val isCorrect = optionId == currentQuestion.answerId
 
-        // Provide feedback based on the answer's correctness
-        answerFeedback = AnswerFeedback(isCorrect, optionId)
+        answerFeedback = AnswerFeedback(isCorrect, optionId,correctOptionId = currentQuestion.answerId)
 
-        if (isCorrect) { // Correct answer logic
+        if (isCorrect) {
             selectedOptionId.value = optionId
-            score += 10 // Increment score for correct answer
+            score += GameConstants.CORRECT_ANSWER_SCORE
             Toast.makeText(context, "Correct Answer!", Toast.LENGTH_SHORT).show()
-        } else { // Wrong answer logic
+        } else {
             selectedOptionId.value = optionId
             Toast.makeText(context, "Incorrect Answer. Try Again!", Toast.LENGTH_SHORT).show()
         }
 
-        // Move to the next question after a delay if the answer was selected
+        isAnswerSelected.value = true
+        countDownTimer?.cancel()
+
         viewModelScope.launch {
             if (questionNumber.value >= questionList.size) {
-                endGame() // End the game if this is the last question
+                endGame()
             } else {
-                delay(2000) // Hold for 2 seconds before moving to the next question
+                delay(GameConstants.NEXT_QUESTION_DELAY)
                 questionNumber.value++
                 loadNextQuestion()
             }
         }
     }
 
+    /**
+     * method used to get the digits from time
+     */
     private fun getTimeFromDigits(firstDigit: String, secondDigit: String): Int {
         return (firstDigit.toIntOrNull() ?: 0) * 10 + (secondDigit.toIntOrNull() ?: 0)
     }
 
+    /**
+     * method used to check if user entered the correct values in time
+     */
     private fun isValidTime(hours: Int, minutes: Int, seconds: Int): Boolean {
         return hours in 0..23 && minutes in 0..59 && seconds in 0..59
     }
 
+    /**
+     * method used to start the challenge once timer ended
+     */
     private fun startChallenge() {
         challengeStarted.value = true
         loadNextQuestion()
     }
 
+    /**
+     * method used to reset the game once ended
+     */
     fun resetGame(context: Context) {
         score = 0
         questionNumber.value = 1
@@ -193,7 +252,10 @@ class GameViewModel : ViewModel() {
         loadQuestionsFromJson(context = context)
     }
 
-    fun endGame() {
+    /**
+     * method used to update the value of game ended
+     */
+    private fun endGame() {
         gameEnded.value = true
     }
 }

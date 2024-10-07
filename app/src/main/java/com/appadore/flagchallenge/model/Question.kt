@@ -13,5 +13,6 @@ data class Country(
 
 data class AnswerFeedback(
     val isCorrect: Boolean,   // Indicates if the selected answer is correct
-    val selectedOptionId: Int // The ID of the selected option
+    val selectedOptionId: Int,
+    val correctOptionId: Int// The ID of the selected option
 )
