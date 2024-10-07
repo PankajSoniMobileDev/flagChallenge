@@ -67,6 +67,7 @@ class MainActivity : ComponentActivity() {
         val focusRequesterSecondsSecond = FocusRequester()
 
         LaunchedEffect(Unit) {
+            viewModel.handleAppReopen(context)
             viewModel.loadQuestionsFromJson(context)
         }
 
@@ -89,7 +90,7 @@ class MainActivity : ComponentActivity() {
 
                 Button(onClick = {
                     if (isValidTime(viewModel)) {
-                        viewModel.scheduleChallenge()
+                        viewModel.scheduleChallenge(context)
                     } else {
                         Toast.makeText(context, "Please enter valid time!", Toast.LENGTH_SHORT).show()
                     }

@@ -36,4 +36,17 @@ object Utils {
             false // Return false if any exception occurs
         }
     }
+
+    fun saveTargetTimeInStorage(context: Context,targetTimeInMillis: Long) {
+        val sharedPreferences = context.getSharedPreferences("ChallengePrefs", Context.MODE_PRIVATE)
+        val editor = sharedPreferences.edit()
+        editor.putLong("target_time", targetTimeInMillis)
+        editor.apply()
+    }
+
+    fun getTargetTimeFromStorage(context: Context): Long {
+        val sharedPreferences = context.getSharedPreferences("ChallengePrefs", Context.MODE_PRIVATE)
+        return sharedPreferences.getLong("target_time", -1L)
+    }
+
 }

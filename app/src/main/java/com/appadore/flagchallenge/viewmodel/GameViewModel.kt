@@ -6,8 +6,6 @@ import android.widget.Toast
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.appadore.flagchallenge.R
@@ -16,6 +14,8 @@ import com.appadore.flagchallenge.model.Country
 import com.appadore.flagchallenge.model.Question
 import com.appadore.flagchallenge.util.GameConstants
 import com.appadore.flagchallenge.util.Utils
+import com.appadore.flagchallenge.util.Utils.getTargetTimeFromStorage
+import com.appadore.flagchallenge.util.Utils.saveTargetTimeInStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -54,6 +54,7 @@ class GameViewModel : ViewModel() {
     var isAnswerSelected = mutableStateOf(false)
 
     private var countDownTimer: CountDownTimer? = null
+
 
     /**
      * method used to start the timer for every question
@@ -112,13 +113,16 @@ class GameViewModel : ViewModel() {
     /**
      * method used to schedule the challenge
      */
-    fun scheduleChallenge() {
+    fun scheduleChallenge(context: Context) {
         val hours = getTimeFromDigits(hoursFirstDigit.value, hoursSecondDigit.value)
         val minutes = getTimeFromDigits(minutesFirstDigit.value, minutesSecondDigit.value)
         val seconds = getTimeFromDigits(secondsFirstDigit.value, secondsSecondDigit.value)
 
         if (isValidTime(hours, minutes, seconds)) {
             totalSecondsToStartChallenge = hours * 3600 + minutes * 60 + seconds
+            val targetTimeInMillis = System.currentTimeMillis() + totalSecondsToStartChallenge * 1000
+            saveTargetTimeInStorage(context,targetTimeInMillis)
+
             startCountdown()
         } else {
             timerText.value = "Invalid Time!"
@@ -257,5 +261,23 @@ class GameViewModel : ViewModel() {
      */
     private fun endGame() {
         gameEnded.value = true
+    }
+
+    /**
+     * method used to handle timer scenario
+     */
+    fun handleAppReopen(context: Context) {
+        val targetTime = getTargetTimeFromStorage(context)
+        if (targetTime != -1L) {
+            val currentTime = System.currentTimeMillis()
+            val remainingTimeInMillis = targetTime - currentTime
+
+            if (remainingTimeInMillis > 0) {
+                totalSecondsToStartChallenge = (remainingTimeInMillis / 1000).toInt()
+                startCountdown()
+            } else {
+                startChallenge()
+            }
+        }
     }
 }
