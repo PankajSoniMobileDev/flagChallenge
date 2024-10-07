@@ -16,6 +16,7 @@ class ChallengeWorkerTest {
 
     @Before
     fun setup() {
+
         context = mock(Context::class.java)
         workerParams = mock(WorkerParameters::class.java)
         notificationManager = mock(NotificationManager::class.java)
