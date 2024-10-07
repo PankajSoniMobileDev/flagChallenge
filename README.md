@@ -1,53 +1,53 @@
-# Flags Challenge Game
+Flags Challenge Game
 
-## Overview
+Overview
 
-Flags Challenge is an interactive quiz game designed to test players' knowledge of world flags. Players will answer multiple-choice questions, selecting the correct country for a given flag. The game incorporates a timer, score tracking, and a friendly user interface built with Jetpack Compose.
+Flags Challenge is an interactive quiz game designed to test players’ knowledge of world flags. Players will answer multiple-choice questions, selecting the correct country for a given flag. The game incorporates a timer, score tracking, and a friendly user interface built with Jetpack Compose.
 
-## Table of Contents
+Table of Contents
 
-- [Features](#features)
-- [Technologies Used](#technologies-used)
-- [Getting Started](#getting-started)
-- [Gameplay Instructions](#gameplay-instructions)
-- [Game Logic](#game-logic)
-- [Code Structure](#code-structure)
-- [Future Improvements](#future-improvements)
-- [Contributing](#contributing)
-  
-## Features
+	•	Features
+	•	Technologies Used
+	•	Getting Started
+	•	Gameplay Instructions
+	•	Game Logic and Timing
+	•	WorkManager Implementation
+	•	Code Structure
+	•	Future Improvements
+	•	Contributing
 
-- **Multiple-Choice Questions**: Test your knowledge with various questions about country flags.
-- **Scoring System**: Earn points for each correct answer.
-- **Countdown Timer**: Challenge yourself with a time limit for each question.
-- **Feedback Mechanism**: Get immediate feedback on your answer choices.
-- **Replay Functionality**: Option to restart the game after completing a round.
+Features
 
-## Technologies Used
+	•	Multiple-Choice Questions: Test your knowledge with various questions about country flags.
+	•	Scoring System: Earn points for each correct answer.
+	•	Countdown Timer: Challenge yourself with a time limit for each question.
+	•	Feedback Mechanism: Get immediate feedback on your answer choices.
+	•	Replay Functionality: Option to restart the game after completing a round.
 
-- **Programming Language**: Kotlin
-- **UI Framework**: Jetpack Compose for building modern UIs.
-- **Dependency Injection**: Hilt for dependency management.
-- **Data Handling**: JSON files for storing questions and answers.
-- **Development Environment**: Android Studio for building and testing the app.
+Technologies Used
 
-## Getting Started
+	•	Programming Language: Kotlin
+	•	UI Framework: Jetpack Compose for building modern UIs.
+	•	Dependency Injection: Hilt for dependency management.
+	•	Data Handling: JSON files for storing questions and answers.
+	•	Development Environment: Android Studio for building and testing the app.
 
-### Prerequisites
+Getting Started
+
+Prerequisites
 
 Make sure you have the following installed on your development machine:
 
-- [Android Studio](https://developer.android.com/studio)
-- Kotlin SDK
-- Emulator or physical Android device for testing
+	•	Android Studio
+	•	Kotlin SDK
+	•	Emulator or physical Android device for testing
 
-### Installation
+Installation
 
-1. **Clone the repository**:
-   ```bash
-   https://github.com/PankajSoniMobileDev/flagChallenge.git
+	1.	Clone the repository:
+                git clone https://github.com/PankajSoniMobileDev/flagChallenge.git
 
-2.	Open the project in Android Studio:
+  2.	Open the project in Android Studio:
 	•	Launch Android Studio.
 	•	Click on “Open an existing Android Studio project.”
 	•	Navigate to the cloned repository folder and open it.
@@ -73,25 +73,17 @@ Gameplay Instructions
 	•	Once all questions have been answered, the game will display your final score.
 	•	You can choose to play again by clicking the “Play Again” button.
 
-Game Logic
+Game Logic and Timing
 
-Key Components
+	•	Questions: Each question consists of a flag image and multiple answer options, which players must select within a limited time frame.
+	•	Answering Timing: Players have 2 seconds to choose an answer. If they do not select an option within this time, the game automatically moves to the next question.
+	•	Score Calculation: Correct answers increase the score by 10 points. The timer resets after each question, ensuring players face a new countdown for every question.
 
-	•	Questions: Each question consists of a flag image and multiple answer options. The correct answer is stored in the question data.
-	•	Scoring: Players earn 10 points for each correct answer. The score is displayed at the end of the game.
-	•	Timer: A countdown timer is displayed, which starts when the game begins and stops when the game ends.
-	•	Game Over: The game ends when all questions are answered, and the final score is displayed.
+WorkManager Implementation
 
-Main Functions
-
-	•	selectOption(optionId: Int, context: Context):
-	•	Handles user input when selecting an answer.
-	•	Checks if the selected answer is correct and updates the score accordingly.
-	•	Moves to the next question after a delay, preventing answer changes during this time.
-	•	loadNextQuestion():
-	•	Loads the next question in the sequence based on the current question number.
-	•	endGame():
-	•	Ends the game and displays the final score, transitioning to the game over view.
+	•	Background Timer: The app utilizes WorkManager to manage the countdown timer in the background, ensuring that even if the app is closed, the timer continues to function.
+	•	Notification Alerts: Notifications are triggered by the WorkManager to inform users about remaining time and when the challenge starts.
+	•	Persistence: The timer maintains its state across app restarts, allowing users to pick up right where they left off.
 
 Code Structure
 
@@ -109,6 +101,7 @@ Example of Option Button Code
 fun OptionButton(option: Country, isSelected: Boolean, isCorrect: Boolean, feedback: AnswerFeedback?, onClick: () -> Unit) {
     // Set button styles based on user interactions
 }
+
 Future Improvements
 
 	•	Enhanced User Interface: Implement animations and transitions for a smoother experience.
@@ -124,11 +117,15 @@ Contributions are welcome! If you would like to contribute, please follow these 
 	•	Click on the “Fork” button at the top right of the repository page.
 	2.	Create a new branch:
  git checkout -b feature/YourFeature
-3.	Make your changes:
+
+ 	3.	Make your changes:
 	•	Implement your feature or fix in the code.
-4.	Commit your changes:
-    git commit -m 'Add some feature'
-5.	Push to the branch:
-    git push origin feature/YourFeature
-6.	Create a pull request:
+	4.	Commit your changes:
+ git commit -m 'Add some feature'
+	5.	Push to the branch:
+ git push origin feature/YourFeature
+
+ 	6.	Create a pull request:
 	•	Go to the original repository and click “New Pull Request.”
+
+ 
